@@ -49,5 +49,5 @@ delay_length_time = 0.001*delay_length*st.session_state.light_speed
 total_delay_time = delay_length_time + st.session_state.dsp_delay + st.session_state.other_delay
 
 st.write(f'Длина линия задержки: `{delay_length:.1f} м`')
-st.write(f'Задержка на распростаранение света: `{delay_length_time:.1f} мкс`')
+st.write(f'Время на распростаранение света по линии задержки: `{delay_length_time:.1f} мкс`')
 st.write(f'Общая зарежка: `{total_delay_time:.1f} мкс`')
