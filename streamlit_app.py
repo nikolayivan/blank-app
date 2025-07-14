@@ -15,7 +15,7 @@ def calculate_delay_line_length(fm, tau_us_per_km, n_period=0):
         float: Длина линии задержки в метрах (без учета фиксированных компонентов).
     """
     tau_s_per_km = tau_us_per_km * 1e-6  # Конвертация мкс в секунды
-    quarter_period = (0.5 + n_period) / (4 * fm)  # Четверть периода с учетом N
+    quarter_period = 1 / (4 * fm)  # Четверть периода с учетом N
     length_km = quarter_period / tau_s_per_km  # Длина в км
     length_m = length_km * 1000  # Конвертация км в метры
     return length_m
@@ -64,30 +64,34 @@ st.write('**Рекомендуемая частота модуляции**: `576
 
 st.subheader('Расчет длины линии задержки')
 st.latex(r'''
-         l = \frac{\frac{0.5 + N}{4f_m}}{\tau}
+         l = \frac{\frac{1}{4f_m}}{\tau}
          ''')
 st.caption('Где: l = длина линии задержки (км), fm = частота модуляции (Гц), τ = задержка распространения (с/км), N = множитель периода (0, 1, 2, ...)')
 
 st.divider()
 st.subheader('Входные параметры')
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 with col1:
-    tau_us_per_km = st.number_input('Задержка распространения света (мкс/км)', value=5.0, min_value=1.0, max_value=10.0, step=0.1, key='light_speed')
+    tau_us_per_km = st.number_input('Скорость света (мкс/км)', value=5.0, min_value=1.0, max_value=10.0, step=0.1, key='light_speed')
 with col2:
-    electro_optical_length = st.number_input('Длина электрооптического блока (м)', value=20.0, min_value=0.0, max_value=50.0, step=1.0, key='electro_optical')
+    electro_optical_length = st.number_input('Длина в ЭОБ (м)', value=20.0, min_value=0.0, max_value=50.0, step=1.0, key='electro_optical')
 with col3:
-    connecting_cable_length = st.number_input('Длина соединительного кабеля + УЧЭ (м)', value=50.0, min_value=0.0, max_value=100.0, step=1.0, key='cable_length')
-with col4:
+    connecting_cable_length = st.number_input('Длина кабеля + ЧЭ (м)', value=50.0, min_value=0.0, max_value=100.0, step=1.0, key='cable_length')
+
+col1, col2, col3 = st.columns(3)
+with col1:
     n_period = st.number_input('Множитель периода (N)', value=0, min_value=0, max_value=5, step=1, key='n_period')
 
-col5, col6, col7, col8 = st.columns(4)
-with col5:
+col1, col2, col3 = st.columns(3)
+with col1:
     dsp_delay = st.number_input('Задержка обработки DSP (мкс)', value=5.0, min_value=0.0, step=0.1, key='dsp_delay')
-with col6:
+with col2:
     other_delay = st.number_input('Прочие задержки (мкс)', value=1.0, min_value=0.0, step=0.1, key='other_delay')
-with col7:
+with col3:
     lpf_order = st.number_input('Порядок НЧФ', value=1, min_value=1, max_value=4, step=1, key='lpf_order')
-with col8:
+
+col1, col2, col3 = st.columns(3)
+with col1:
     num_samples = st.number_input('Количество отсчетов для фильтра гармоник', value=3, min_value=3, max_value=10, step=1, key='num_samples')
 
 fmod_khz = st.slider('Частота модуляции (кГц)', 100, 2000, 576, 10, key='fmod', help='Рекомендуется: 576–768 кГц для потока SV 96 кГц')
@@ -121,8 +125,8 @@ st.bar_chart(
 # Отображение результатов
 st.subheader('Результаты')
 st.write(f'**Длина линии задержки (переменная)**: `{delay_line_length:.1f} м`')
-st.write(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м1')
-st.write(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс')
+st.write(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м`')
+st.write(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс`')
 st.write(f'**Групповая задержка НЧФ**: `{lpf_delay:.1f} мкс`')
 st.write(f'**Задержка фазового детектора (ПЛИС)**: `{phase_detector_delay:.1f} мкс`')
 st.write(f'**Задержка передачи данных (ПЛИС к DSP)**: `{data_transfer_delay:.1f} мкс`')
