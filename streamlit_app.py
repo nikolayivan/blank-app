@@ -114,6 +114,8 @@ chart_data = pd.DataFrame(
     }
 )
 
+st.subheader('Результаты')
+# Отображение результатов
 st.bar_chart(
     chart_data,
     x = "index",
@@ -122,16 +124,13 @@ st.bar_chart(
     horizontal = True
 )
 
-# Отображение результатов
-st.subheader('Результаты')
-st.write(f'**Длина линии задержки (переменная)**: `{delay_line_length:.1f} м`')
-st.write(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м`')
-st.write(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс`')
-st.write(f'**Групповая задержка НЧФ**: `{lpf_delay:.1f} мкс`')
-st.write(f'**Задержка фазового детектора (ПЛИС)**: `{phase_detector_delay:.1f} мкс`')
-st.write(f'**Задержка передачи данных (ПЛИС к DSP)**: `{data_transfer_delay:.1f} мкс`')
-st.write(f'**Общая задержка**: `{total_delay_time:.1f} мкс`')
-
+st.caption(f'**Длина линии задержки (переменная)**: `{delay_line_length:.1f} м`')
+st.caption(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м`')
+st.caption(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс`')
+st.caption(f'**Групповая задержка НЧФ**: `{lpf_delay:.1f} мкс`')
+st.caption(f'**Задержка фазового детектора (ПЛИС)**: `{phase_detector_delay:.1f} мкс`')
+st.caption(f'**Задержка передачи данных (ПЛИС к DSP)**: `{data_transfer_delay:.1f} мкс`')
+st.caption(f'**Общая задержка**: `{total_delay_time:.1f} мкс`')
 
 # Проверка требований к задержке
 if 5 <= total_delay_time <= 25:
