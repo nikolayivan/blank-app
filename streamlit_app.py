@@ -1,53 +1,154 @@
 import streamlit as st
+import math
+import pandas as pd
 
-def calculate_delay_line_length(fm, tau_us_per_km):
+def calculate_delay_line_length(fm, tau_us_per_km, n_period=0):
     """
-    Calculate delay line length in meters.
+    Рассчитать длину линии задержки в метрах для рефлективного оптического пути.
     
     Args:
-        fm (float): Modulation frequency in Hz.
-        tau_us_per_km (float): Propagation delay in microseconds per kilometer.
+        fm (float): Частота модуляции в Гц.
+        tau_us_per_km (float): Задержка распространения в микросекундах на километр.
+        n_period (int): Множитель периода (0.5+N, N=0, 1, 2, ...).
     
     Returns:
-        float: Length of the delay line in meters.
+        float: Длина линии задержки в метрах (без учета фиксированных компонентов).
     """
-    tau_s_per_km = tau_us_per_km * 1e-6  # Convert μs to seconds
-    half_period = 1 / (2 * fm)  # Half-period in seconds
-    length_km = half_period / tau_s_per_km  # Length in km
-    length_m = length_km * 1000  # Convert km to meters
+    tau_s_per_km = tau_us_per_km * 1e-6  # Конвертация мкс в секунды
+    quarter_period = (0.5 + n_period) / (4 * fm)  # Четверть периода с учетом N
+    length_km = quarter_period / tau_s_per_km  # Длина в км
+    length_m = length_km * 1000  # Конвертация км в метры
     return length_m
 
+def calculate_lpf_delay(fm, lpf_order=1, cutoff_factor=0.25):
+    """
+    Рассчитать групповую задержку низкочастотного фильтра (НЧФ).
+    
+    Args:
+        fm (float): Частота модуляции в Гц.
+        lpf_order (int): Порядок НЧФ (по умолчанию: 1).
+        cutoff_factor (float): Отношение частоты среза к частоте модуляции (по умолчанию: 0.25).
+    
+    Returns:
+        float: Групповая задержка НЧФ в микросекундах.
+    """
+    fc = fm * cutoff_factor  # Частота среза
+    if lpf_order == 1:
+        delay_s = 1 / (2 * math.pi * fc)  # Групповая задержка для НЧФ первого порядка
+    else:
+        delay_s = lpf_order / (2 * math.pi * fc)  # Приблизительно для высших порядков
+    return delay_s * 1e6  # Конвертация в микросекунды
 
-st.header('Калькулятор задержки')
+def calculate_phase_detector_delay(fm, num_samples=3):
+    """
+    Рассчитать задержку фазового детектора (ПЛИС).
+    
+    Args:
+        fm (float): Частота модуляции в Гц.
+        num_samples (int): Количество отсчетов для фильтрации гармоник (по умолчанию: 3).
+    
+    Returns:
+        float: Задержка фазового детектора в микросекундах.
+    """
+    period_s = 1 / fm  # Один период модуляции
+    harmonic_extraction_delay = period_s  # Задержка для выделения первой гармоники
+    filtering_delay = num_samples * period_s  # Задержка для фильтрации гармоник
+    return (harmonic_extraction_delay + filtering_delay) * 1e6  # Конвертация в микросекунды
 
-st.caption('Требования для целей учета электроэнергии и РЗА в сетях HVDC:')
-st.write('Частота SV потока `96000 Гц`')
-st.write('Задержка (time delay, td), мкс  `5 µs` – `25 µs` – `100 µs`')
+st.header('Калькулятор задержки ОТТ')
 
+st.subheader('IEC 61869-14:2018, IEC 61850, IEC 61869-9')
+st.write('**Частота потока SV**: `96 кГц`')
+st.write('**Общая задержка (td)**: `5–25 мкс` (учет электроэнергии), `≤100 мкс` (релейная защита)')
+st.write('**Рекомендуемая частота модуляции**: `576–768 кГц` (3–4 × частота Найквиста для `96 кГц`)')
 
-st.write('Длина линии задержки зависит от частоты модуляции согласно:')
+st.subheader('Расчет длины линии задержки')
 st.latex(r'''
-         l = \left(\frac{\frac{1}{2f_m}}{\tau}\right)
+         l = \frac{\frac{0.5 + N}{4f_m}}{\tau}
          ''')
-st.caption('tau=5 мкс/км - время распространения света в среде')
+st.caption('Где: l = длина линии задержки (км), fm = частота модуляции (Гц), τ = задержка распространения (с/км), N = множитель периода (0, 1, 2, ...)')
 
 st.divider()
-col1, col2, col3 = st.columns(3)
+st.subheader('Входные параметры')
+col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.number_input('Распространения света, мкс/км', value=5, key='light_speed')
-
+    tau_us_per_km = st.number_input('Задержка распространения света (мкс/км)', value=5.0, min_value=1.0, max_value=10.0, step=0.1, key='light_speed')
 with col2:
-    st.number_input('Обработки DSP, мкс', value=5, key='dsp_delay')
-
+    electro_optical_length = st.number_input('Длина электрооптического блока (м)', value=20.0, min_value=0.0, max_value=50.0, step=1.0, key='electro_optical')
 with col3:
-    st.number_input('Прочие задержки, мкс', value=1, key='other_delay')
+    connecting_cable_length = st.number_input('Длина соединительного кабеля + УЧЭ (м)', value=50.0, min_value=0.0, max_value=100.0, step=1.0, key='cable_length')
+with col4:
+    n_period = st.number_input('Множитель периода (N)', value=0, min_value=0, max_value=5, step=1, key='n_period')
 
-st.slider('Частота модуляции, кГц', 10, 2000, 64, 10, key='fmod')
+col5, col6, col7, col8 = st.columns(4)
+with col5:
+    dsp_delay = st.number_input('Задержка обработки DSP (мкс)', value=5.0, min_value=0.0, step=0.1, key='dsp_delay')
+with col6:
+    other_delay = st.number_input('Прочие задержки (мкс)', value=1.0, min_value=0.0, step=0.1, key='other_delay')
+with col7:
+    lpf_order = st.number_input('Порядок НЧФ', value=1, min_value=1, max_value=4, step=1, key='lpf_order')
+with col8:
+    num_samples = st.number_input('Количество отсчетов для фильтра гармоник', value=3, min_value=3, max_value=10, step=1, key='num_samples')
 
-delay_length = calculate_delay_line_length(st.session_state.fmod*1000, st.session_state.light_speed)
-delay_length_time = 0.001*delay_length*st.session_state.light_speed
-total_delay_time = delay_length_time + st.session_state.dsp_delay + st.session_state.other_delay
+fmod_khz = st.slider('Частота модуляции (кГц)', 100, 2000, 576, 10, key='fmod', help='Рекомендуется: 576–768 кГц для потока SV 96 кГц')
 
-st.write(f'Длина линия задержки: `{delay_length:.1f} м`')
-st.write(f'Время на распростаранение света по линии задержки: `{delay_length_time:.1f} мкс`')
-st.write(f'Общая зарежка: `{total_delay_time:.1f} мкс`')
+# Расчеты
+fmod = fmod_khz * 1000  # Конвертация кГц в Гц
+delay_line_length = calculate_delay_line_length(fmod, tau_us_per_km, n_period)
+total_optical_length = delay_line_length + electro_optical_length + connecting_cable_length
+optical_delay = 2 * 0.001 * total_optical_length * tau_us_per_km  # Рефлективный путь: свет проходит дважды
+lpf_delay = calculate_lpf_delay(fmod, lpf_order=lpf_order, cutoff_factor=0.25)
+phase_detector_delay = calculate_phase_detector_delay(fmod, num_samples=num_samples)
+data_transfer_delay = 0.5  # Фиксированная задержка передачи данных от ПЛИС к DSP
+total_delay_time = optical_delay + lpf_delay + phase_detector_delay + dsp_delay + other_delay + data_transfer_delay
+
+chart_data = pd.DataFrame(
+    {
+        "index": ['Delay']*6,
+        'name': ['Оптика', 'НЧФ', 'ПЛИС', 'Передача данных', 'DSP', 'Прочие'],
+        'values': [optical_delay, lpf_delay, phase_detector_delay, data_transfer_delay, dsp_delay, other_delay],
+    }
+)
+
+st.bar_chart(
+    chart_data,
+    x = "index",
+    y = "values",
+    color='name',
+    horizontal = True
+)
+
+# Отображение результатов
+st.subheader('Результаты')
+st.write(f'**Длина линии задержки (переменная)**: `{delay_line_length:.1f} м`')
+st.write(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м1')
+st.write(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс')
+st.write(f'**Групповая задержка НЧФ**: `{lpf_delay:.1f} мкс`')
+st.write(f'**Задержка фазового детектора (ПЛИС)**: `{phase_detector_delay:.1f} мкс`')
+st.write(f'**Задержка передачи данных (ПЛИС к DSP)**: `{data_transfer_delay:.1f} мкс`')
+st.write(f'**Общая задержка**: `{total_delay_time:.1f} мкс`')
+
+
+# Проверка требований к задержке
+if 5 <= total_delay_time <= 25:
+    st.success('Общая задержка соответствует требованиям учета электроэнергии (5–25 мкс).')
+elif 25 < total_delay_time <= 100:
+    st.warning('Общая задержка соответствует требованиям релейной защиты (≤100 мкс), но превышает требования учета.')
+else:
+    st.error('Общая задержка превышает требования релейной защиты (>100 мкс).')
+
+# Проверка частоты модуляции для потока SV
+if fmod >= 576000:  # 3 × частота Найквиста для 96 кГц
+    st.success('Частота модуляции поддерживает поток SV 96 кГц (≥576 кГц).')
+else:
+    st.error('Частота модуляции слишком низкая для потока SV 96 кГц (требуется ≥576 кГц).')
+
+# Проверка частоты дискретизации АЦП/ПЛИС
+if fmod * 400 <= 1e9:  # Предполагаемый предел 1 ГГц для АЦП/ПЛИС
+    st.success(f'АЦП/ПЛИС поддерживает требуемую частоту дискретизации ({fmod*400/1e6:.1f} МГц ≤ 1 ГГц).')
+else:
+    st.error(f'Частота дискретизации АЦП/ПЛИС ({fmod*400/1e6:.1f} МГц) превышает типичный предел 1 ГГц.')
+
+# Предупреждение о шуме для N > 0
+if n_period > 0:
+    st.warning(f'Множитель периода N={n_period} увеличивает шум из-за большей длины оптического пути.')
