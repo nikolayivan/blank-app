@@ -57,7 +57,7 @@ def calculate_phase_detector_delay(fm, num_samples=3):
 
 st.header('Калькулятор задержки ОТТ')
 
-st.subheader('IEC 61869-14:2018, IEC 61850, IEC 61869-9')
+st.caption('IEC 61869-14:2018, IEC 61850, IEC 61869-9')
 st.write('**Частота потока SV**: `96 кГц`')
 st.write('**Общая задержка (td)**: `5–25 мкс` (учет электроэнергии), `≤100 мкс` (релейная защита)')
 st.write('**Рекомендуемая частота модуляции**: `576–768 кГц` (3–4 × частота Найквиста для `96 кГц`)')
@@ -78,9 +78,9 @@ with col2:
 with col3:
     connecting_cable_length = st.number_input('Длина кабеля + ЧЭ (м)', value=50.0, min_value=0.0, max_value=100.0, step=1.0, key='cable_length')
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    n_period = st.number_input('Множитель периода (N)', value=0, min_value=0, max_value=5, step=1, key='n_period')
+# col1, col2, col3 = st.columns(3)
+# with col1:
+#     n_period = st.number_input('Множитель периода (N)', value=0, min_value=0, max_value=5, step=1, key='n_period')
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -98,7 +98,7 @@ fmod_khz = st.slider('Частота модуляции (кГц)', 100, 2000, 57
 
 # Расчеты
 fmod = fmod_khz * 1000  # Конвертация кГц в Гц
-delay_line_length = calculate_delay_line_length(fmod, tau_us_per_km, n_period)
+delay_line_length = calculate_delay_line_length(fmod, tau_us_per_km, 0)
 total_optical_length = delay_line_length + electro_optical_length + connecting_cable_length
 optical_delay = 2 * 0.001 * total_optical_length * tau_us_per_km  # Рефлективный путь: свет проходит дважды
 lpf_delay = calculate_lpf_delay(fmod, lpf_order=lpf_order, cutoff_factor=0.25)
@@ -114,8 +114,11 @@ chart_data = pd.DataFrame(
     }
 )
 
-st.subheader('Результаты')
 # Отображение результатов
+st.subheader('Результат')
+
+st.write(f'Общая задержка: `{total_delay_time:.1f} мкс`')
+
 st.bar_chart(
     chart_data,
     x = "index",
@@ -124,14 +127,19 @@ st.bar_chart(
     horizontal = True
 )
 
-st.caption(f'**Длина линии задержки (переменная)**: `{delay_line_length:.1f} м`')
-st.caption(f'**Общая длина оптического пути (линия задержки + электрооптический блок + кабель)**: `{total_optical_length:.1f} м`')
-st.caption(f'**Задержка распространения света (рефлективный путь)**: `{optical_delay:.1f} мкс`')
-st.caption(f'**Групповая задержка НЧФ**: `{lpf_delay:.1f} мкс`')
-st.caption(f'**Задержка фазового детектора (ПЛИС)**: `{phase_detector_delay:.1f} мкс`')
-st.caption(f'**Задержка передачи данных (ПЛИС к DSP)**: `{data_transfer_delay:.1f} мкс`')
-st.caption(f'**Общая задержка**: `{total_delay_time:.1f} мкс`')
 
+col1, col2 = st.columns(2)
+with col1:
+    st.write(f'Длина линии задержки: `{delay_line_length:.1f} м`')
+    st.write(f'Общая длина оптического пути: `{total_optical_length:.1f} м`')
+    st.write(f'Задержка распространения света: `{optical_delay:.1f} мкс`')
+
+with col2:
+    st.write(f'Групповая задержка НЧФ: `{lpf_delay:.1f} мкс`')
+    st.write(f'Задержка фазового детектора: `{phase_detector_delay:.1f} мкс`')
+    st.write(f'Задержка передачи данных: `{data_transfer_delay:.1f} мкс`')
+
+st.divider()
 # Проверка требований к задержке
 if 5 <= total_delay_time <= 25:
     st.success('Общая задержка соответствует требованиям учета электроэнергии (5–25 мкс).')
@@ -152,6 +160,6 @@ if fmod * 400 <= 1e9:  # Предполагаемый предел 1 ГГц дл
 else:
     st.error(f'Частота дискретизации АЦП/ПЛИС ({fmod*400/1e6:.1f} МГц) превышает типичный предел 1 ГГц.')
 
-# Предупреждение о шуме для N > 0
-if n_period > 0:
-    st.warning(f'Множитель периода N={n_period} увеличивает шум из-за большей длины оптического пути.')
+# # Предупреждение о шуме для N > 0
+# if n_period > 0:
+#     st.warning(f'Множитель периода N={n_period} увеличивает шум из-за большей длины оптического пути.')
